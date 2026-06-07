@@ -16,20 +16,21 @@ public class StashieCore : BaseSettingsPlugin<StashieSettings>
     public const string StashTabsNameChecker = "Stash Tabs Name Checker";
     public static StashieCore Main;
 
-    public static List<string> RenamedAllStashNames;
+    public static List<string> RenamedAllStashNames = ["Ignore"];
     public readonly Stopwatch DebugTimer = new();
     public Vector2N ClickWindowOffset;
 
-    public List<CustomFilter> currentFilter;
-    public List<FilterResult> DropItems;
+    public List<CustomFilter> currentFilter = [];
+    public List<FilterResult> DropItems = [];
     public Action FilterTabs;
     public bool IsFilterEditorTab;
-    public List<ListIndexNode> SettingsListNodes;
-    public string[] StashTabNamesByIndex;
+    public List<ListIndexNode> SettingsListNodes = [];
+    public string[] StashTabNamesByIndex = ["Ignore"];
     public int VisibleStashIndex = -1;
 
     public StashieCore()
     {
+        Main = this;
         Name = "Stashie With Linq";
     }
 

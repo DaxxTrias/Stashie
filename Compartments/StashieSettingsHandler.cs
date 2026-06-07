@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -55,17 +56,29 @@ public class StashieSettingsHandler
 
     public static void GenerateTabMenu()
     {
-        Main.StashTabNamesByIndex = [.. RenamedAllStashNames];
+        if (Main == null)
+            return;
 
-        Main.FilterTabs = null;
+        GenerateTabMenu(Main);
+    }
 
-        foreach (var parent in Main.currentFilter)
-            Main.FilterTabs += () =>
+    public static void GenerateTabMenu(StashieCore stashie)
+    {
+        RenamedAllStashNames = GetStashNames(stashie);
+        stashie.StashTabNamesByIndex = [.. RenamedAllStashNames];
+
+        stashie.FilterTabs = null;
+
+        if (stashie.currentFilter == null || stashie.currentFilter.Count == 0)
+            return;
+
+        foreach (var parent in stashie.currentFilter)
+            stashie.FilterTabs += () =>
             {
                 ImGui.TextColored(new Vector4N(0f, 1f, 0.022f, 1f), parent.ParentMenuName);
 
                 foreach (var filter in parent.Filters)
-                    if (Main.Settings.CustomFilterOptions.TryGetValue(parent.ParentMenuName + filter.FilterName,
+                    if (stashie.Settings.CustomFilterOptions.TryGetValue(parent.ParentMenuName + filter.FilterName,
                             out var indexNode))
                     {
                         var strId = $"{filter.FilterName}##{parent.ParentMenuName + filter.FilterName}";
@@ -79,18 +92,18 @@ public class StashieSettingsHandler
                         ImGui.SameLine();
                         ImGui.NextColumn();
 
-                        var item = indexNode.Index + 1;
+                        var item = Math.Clamp(indexNode.Index + 1, 0, stashie.StashTabNamesByIndex.Length - 1);
                         var filterName = filter.FilterName;
 
                         if (string.IsNullOrWhiteSpace(filterName))
                             filterName = "Null";
 
                         if (ImGui.Combo($"##{parent.ParentMenuName + filter.FilterName}", ref item,
-                                Main.StashTabNamesByIndex, Main.StashTabNamesByIndex.Length))
+                                stashie.StashTabNamesByIndex, stashie.StashTabNamesByIndex.Length))
                         {
-                            indexNode.Value = Main.StashTabNamesByIndex[item];
+                            indexNode.Value = stashie.StashTabNamesByIndex[item];
                             StashTabNameCoRoutine.OnSettingsStashNameChanged(indexNode,
-                                Main.StashTabNamesByIndex[item]);
+                                stashie.StashTabNamesByIndex[item]);
                         }
 
                         var specialTag = "";
@@ -113,7 +126,7 @@ public class StashieSettingsHandler
 
                         var x = 0;
 
-                        foreach (var name in RenamedAllStashNames)
+                        foreach (var name in stashie.StashTabNamesByIndex)
                         {
                             x++;
 
@@ -142,13 +155,31 @@ public class StashieSettingsHandler
             };
     }
 
-    public static void DrawReloadConfigButton()
+    private static List<string> GetStashNames(StashieCore stashie)
+    {
+        if (RenamedAllStashNames is { Count: > 0 })
+            return RenamedAllStashNames;
+
+        if (stashie.Settings.AllStashNames is { Count: > 0 })
+        {
+            var stashNames = new List<string>(stashie.Settings.AllStashNames.Count + 1);
+            if (!string.Equals(stashie.Settings.AllStashNames[0], "Ignore", StringComparison.Ordinal))
+                stashNames.Add("Ignore");
+
+            stashNames.AddRange(stashie.Settings.AllStashNames);
+            return stashNames;
+        }
+
+        return ["Ignore"];
+    }
+
+    public static void DrawReloadConfigButton(StashieCore stashie)
     {
         if (!ImGui.Button("Reload config"))
             return;
 
-        FilterManager.LoadCustomFilters();
-        GenerateTabMenu();
+        FilterManager.LoadCustomFilters(stashie);
+        GenerateTabMenu(stashie);
         DebugWindow.LogMsg("Reloaded Stashie config", 2, Color.LimeGreen);
     }
 
@@ -242,7 +273,7 @@ public class StashieSettingsHandler
 
     public static void FilePicker(StashieCore stashie)
     {
-        DrawReloadConfigButton();
+        DrawReloadConfigButton(stashie);
         DrawIgnoredCellsSettings(stashie);
         if (ImGui.Button("Open Filter Folder"))
         {
