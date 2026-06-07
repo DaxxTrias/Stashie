@@ -74,27 +74,37 @@ public class StashieSettingsHandler
             stashie.FilterTabs += () =>
             {
                 ImGui.TextColored(new Vector4N(0f, 1f, 0.022f, 1f), parent.ParentMenuName);
+                ImGui.SameLine();
+
+                var deleteCategoryPopupId = $"Delete category?##{parent.ParentMenuName}";
+                if (ImGui.Button($"Delete Category##{parent.ParentMenuName}"))
+                    ImGui.OpenPopup(deleteCategoryPopupId);
+
+                if (StashieEditorHandler.ShowButtonPopup(deleteCategoryPopupId, [$"Delete '{parent.ParentMenuName}'?", "Cancel"], out var deleteCategoryIndex) &&
+                    deleteCategoryIndex == 0)
+                    DeleteFilterCategory(stashie, parent.ParentMenuName);
+
+                var filterButtonWidth = GetFilterButtonWidth(parent);
 
                 foreach (var filter in parent.Filters)
                     if (stashie.Settings.CustomFilterOptions.TryGetValue(parent.ParentMenuName + filter.FilterName,
                             out var indexNode))
                     {
-                        var strId = $"{filter.FilterName}##{parent.ParentMenuName + filter.FilterName}";
+                        var filterName = string.IsNullOrWhiteSpace(filter.FilterName) ? "Null" : filter.FilterName;
+                        var strId = $"{filterName}##{parent.ParentMenuName + filter.FilterName}";
 
                         ImGui.Columns(2, strId, true);
-                        ImGui.SetColumnWidth(0, 320);
+                        ImGui.SetColumnWidth(0, filterButtonWidth + 20);
 
-                        if (ImGui.Button(strId, new Vector2N(300, 20)))
+                        if (ImGui.Button(strId, new Vector2N(filterButtonWidth, 20)))
                             ImGui.OpenPopup(strId);
+                        if (ImGui.IsItemHovered())
+                            ImGui.SetTooltip(filterName);
 
                         ImGui.SameLine();
                         ImGui.NextColumn();
 
                         var item = Math.Clamp(indexNode.Index + 1, 0, stashie.StashTabNamesByIndex.Length - 1);
-                        var filterName = filter.FilterName;
-
-                        if (string.IsNullOrWhiteSpace(filterName))
-                            filterName = "Null";
 
                         if (ImGui.Combo($"##{parent.ParentMenuName + filter.FilterName}", ref item,
                                 stashie.StashTabNamesByIndex, stashie.StashTabNamesByIndex.Length))
@@ -151,6 +161,51 @@ public class StashieSettingsHandler
                         indexNode = new ListIndexNode { Value = "Ignore", Index = -1 };
                     }
             };
+    }
+
+    private static float GetFilterButtonWidth(Stashie.Filter.CustomFilter parent)
+    {
+        var width = 300f;
+        foreach (var filter in parent.Filters)
+        {
+            var filterName = string.IsNullOrWhiteSpace(filter.FilterName) ? "Null" : filter.FilterName;
+            width = Math.Max(width, ImGui.CalcTextSize(filterName).X + 48f);
+        }
+
+        return width;
+    }
+
+    private static void DeleteFilterCategory(StashieCore stashie, string categoryName)
+    {
+        var filterFileName = stashie.Settings.FilterFile.Value;
+        if (string.IsNullOrWhiteSpace(filterFileName))
+        {
+            stashie.LogError("No filter file selected to delete category from.", 5);
+            return;
+        }
+
+        if (!FileManager.TryLoadFile<FilterEditor.FilterParent>(
+                filterFileName,
+                ".json",
+                loadedFilter =>
+                {
+                    loadedFilter.ParentMenu ??= [];
+                    var removedCount = loadedFilter.ParentMenu.RemoveAll(
+                        parentMenu => string.Equals(parentMenu.MenuName, categoryName, StringComparison.Ordinal));
+
+                    if (removedCount == 0)
+                    {
+                        stashie.LogError($"Category '{categoryName}' was not found in {filterFileName}.json.", 5);
+                        return;
+                    }
+
+                    stashie.Settings.CurrentFilterOptions = loadedFilter;
+                    FileManager.SaveToFile(loadedFilter, filterFileName);
+                    FilterManager.LoadCustomFilters(stashie);
+                    GenerateTabMenu(stashie);
+                    DebugWindow.LogMsg($"Deleted Stashie category '{categoryName}' and reloaded config.", 5, Color.LimeGreen);
+                }))
+            stashie.LogError($"Failed to load {filterFileName}.json while deleting category '{categoryName}'.", 5);
     }
 
     private static List<string> GetStashNames(StashieCore stashie)
