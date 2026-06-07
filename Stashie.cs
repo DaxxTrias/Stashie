@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using ExileCore2;
@@ -90,7 +90,7 @@ public class StashieCore : BaseSettingsPlugin<StashieSettings>
         }
         else
         {
-            StashieSettingsHandler.FilePicker();
+            StashieSettingsHandler.FilePicker(this);
             base.DrawSettings();
             FilterTabs?.Invoke();
         }

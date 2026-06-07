@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -16,21 +16,25 @@ namespace Stashie.Compartments;
 
 public class StashieSettingsHandler
 {
-    public static void SaveIgnoredSlotsFromInventoryTemplate()
+    private const int InventoryRows = 5;
+    private const int MainInventoryColumns = 12;
+    private const int ExpandedInventoryColumns = 4;
+
+    public static void SaveIgnoredSlotsFromInventoryTemplate(StashieCore stashie)
     {
-        Main.Settings.IgnoredCells = new int[5, 12];
-        Main.Settings.IgnoredExpandedCells = new int[5, 4];
+        stashie.Settings.IgnoredCells = new int[InventoryRows, MainInventoryColumns];
+        stashie.Settings.IgnoredExpandedCells = new int[InventoryRows, ExpandedInventoryColumns];
 
         try
         {
             // Player Inventory
             var inventory_server =
-                Main.GameController.IngameState.Data.ServerData.PlayerInventories[(int)InventorySlotE.MainInventory1];
-            UpdateIgnoredCells(inventory_server, Main.Settings.IgnoredCells);
+                stashie.GameController.IngameState.Data.ServerData.PlayerInventories[(int)InventorySlotE.MainInventory1];
+            UpdateIgnoredCells(inventory_server, stashie.Settings.IgnoredCells);
         }
         catch (Exception e)
         {
-            Main.LogError($"{e}", 5);
+            stashie.LogError($"{e}", 5);
         }
     }
 
@@ -148,12 +152,14 @@ public class StashieSettingsHandler
         DebugWindow.LogMsg("Reloaded Stashie config", 2, Color.LimeGreen);
     }
 
-    public static void DrawIgnoredCellsSettings()
+    public static void DrawIgnoredCellsSettings(StashieCore stashie)
     {
+        EnsureIgnoredCellSettings(stashie.Settings);
+
         try
         {
             if (ImGui.Button("Copy Inventory"))
-                SaveIgnoredSlotsFromInventoryTemplate();
+                SaveIgnoredSlotsFromInventoryTemplate(stashie);
 
             ImGui.SameLine();
             ImGui.TextDisabled("(?)");
@@ -170,12 +176,12 @@ public class StashieSettingsHandler
         ImGui.SetColumnWidth(0, 120);
 
         var numb = 1;
-        for (var i = 0; i < 5; i++)
-        for (var j = 0; j < 4; j++)
+        for (var i = 0; i < InventoryRows; i++)
+        for (var j = 0; j < ExpandedInventoryColumns; j++)
         {
-            var toggled = Convert.ToBoolean(Main.Settings.IgnoredExpandedCells[i, j]);
+            var toggled = Convert.ToBoolean(stashie.Settings.IgnoredExpandedCells[i, j]);
             if (ImGui.Checkbox($"##{numb}IgnoredBackpackInventoryCells", ref toggled))
-                Main.Settings.IgnoredExpandedCells[i, j] ^= 1;
+                stashie.Settings.IgnoredExpandedCells[i, j] ^= 1;
 
             if ((numb - 1) % 4 < 3)
                 ImGui.SameLine();
@@ -185,12 +191,12 @@ public class StashieSettingsHandler
 
         ImGui.NextColumn();
         numb = 1;
-        for (var i = 0; i < 5; i++)
-        for (var j = 0; j < 12; j++)
+        for (var i = 0; i < InventoryRows; i++)
+        for (var j = 0; j < MainInventoryColumns; j++)
         {
-            var toggled = Convert.ToBoolean(Main.Settings.IgnoredCells[i, j]);
+            var toggled = Convert.ToBoolean(stashie.Settings.IgnoredCells[i, j]);
             if (ImGui.Checkbox($"##{numb}IgnoredMainInventoryCells", ref toggled))
-                Main.Settings.IgnoredCells[i, j] ^= 1;
+                stashie.Settings.IgnoredCells[i, j] ^= 1;
 
             if ((numb - 1) % 12 < 11)
                 ImGui.SameLine();
@@ -202,13 +208,45 @@ public class StashieSettingsHandler
         ImGui.Columns(1);
     }
 
-    public static void FilePicker()
+    private static void EnsureIgnoredCellSettings(StashieSettings settings)
+    {
+        settings.IgnoredCells = EnsureIgnoredCellShape(
+            settings.IgnoredCells,
+            InventoryRows,
+            MainInventoryColumns);
+        settings.IgnoredExpandedCells = EnsureIgnoredCellShape(
+            settings.IgnoredExpandedCells,
+            InventoryRows,
+            ExpandedInventoryColumns);
+    }
+
+    private static int[,] EnsureIgnoredCellShape(int[,] ignoredCells, int rows, int columns)
+    {
+        if (ignoredCells != null &&
+            ignoredCells.GetLength(0) == rows &&
+            ignoredCells.GetLength(1) == columns)
+            return ignoredCells;
+
+        var resizedIgnoredCells = new int[rows, columns];
+        if (ignoredCells == null)
+            return resizedIgnoredCells;
+
+        var rowsToCopy = Math.Min(rows, ignoredCells.GetLength(0));
+        var columnsToCopy = Math.Min(columns, ignoredCells.GetLength(1));
+        for (var row = 0; row < rowsToCopy; row++)
+        for (var column = 0; column < columnsToCopy; column++)
+            resizedIgnoredCells[row, column] = ignoredCells[row, column];
+
+        return resizedIgnoredCells;
+    }
+
+    public static void FilePicker(StashieCore stashie)
     {
         DrawReloadConfigButton();
-        DrawIgnoredCellsSettings();
+        DrawIgnoredCellsSettings(stashie);
         if (ImGui.Button("Open Filter Folder"))
         {
-            var configDir = Main.ConfigDirectory;
+            var configDir = stashie.ConfigDirectory;
             var directoryToOpen = Directory.Exists(configDir);
 
             if (!directoryToOpen)
