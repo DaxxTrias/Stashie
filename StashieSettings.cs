@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using System.Windows.Forms;
 using ExileCore2.Shared.Attributes;
@@ -47,8 +47,6 @@ public class StashieSettings : ISettings
     [Menu("Keep Highest ID Scroll Stack")] public ToggleNode KeepHighestIDStack { get; set; } = new(false);
 
     public int[,] IgnoredCells { get; set; } = new int[5, 12];
-
-    public int[,] IgnoredExpandedCells { get; set; } = new int[5, 4];
 
     public string ConfigLastSaved { get; set; } = "";
     public string ConfigLastSelected { get; set; } = "";

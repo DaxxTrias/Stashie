@@ -19,12 +19,10 @@ public class StashieSettingsHandler
 {
     private const int InventoryRows = 5;
     private const int MainInventoryColumns = 12;
-    private const int ExpandedInventoryColumns = 4;
 
     public static void SaveIgnoredSlotsFromInventoryTemplate(StashieCore stashie)
     {
         stashie.Settings.IgnoredCells = new int[InventoryRows, MainInventoryColumns];
-        stashie.Settings.IgnoredExpandedCells = new int[InventoryRows, ExpandedInventoryColumns];
 
         try
         {
@@ -203,25 +201,7 @@ public class StashieSettingsHandler
             DebugWindow.LogError(e.ToString(), 10);
         }
 
-        ImGui.Columns(2, "", true);
-        ImGui.SetColumnWidth(0, 120);
-
         var numb = 1;
-        for (var i = 0; i < InventoryRows; i++)
-        for (var j = 0; j < ExpandedInventoryColumns; j++)
-        {
-            var toggled = Convert.ToBoolean(stashie.Settings.IgnoredExpandedCells[i, j]);
-            if (ImGui.Checkbox($"##{numb}IgnoredBackpackInventoryCells", ref toggled))
-                stashie.Settings.IgnoredExpandedCells[i, j] ^= 1;
-
-            if ((numb - 1) % 4 < 3)
-                ImGui.SameLine();
-
-            numb += 1;
-        }
-
-        ImGui.NextColumn();
-        numb = 1;
         for (var i = 0; i < InventoryRows; i++)
         for (var j = 0; j < MainInventoryColumns; j++)
         {
@@ -234,9 +214,6 @@ public class StashieSettingsHandler
 
             numb += 1;
         }
-
-        // Settings to 0 breaks normal settings draws, core has 1 column for sliders?
-        ImGui.Columns(1);
     }
 
     private static void EnsureIgnoredCellSettings(StashieSettings settings)
@@ -245,10 +222,6 @@ public class StashieSettingsHandler
             settings.IgnoredCells,
             InventoryRows,
             MainInventoryColumns);
-        settings.IgnoredExpandedCells = EnsureIgnoredCellShape(
-            settings.IgnoredExpandedCells,
-            InventoryRows,
-            ExpandedInventoryColumns);
     }
 
     private static int[,] EnsureIgnoredCellShape(int[,] ignoredCells, int rows, int columns)
